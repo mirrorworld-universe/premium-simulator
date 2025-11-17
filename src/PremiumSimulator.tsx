@@ -42,10 +42,16 @@ const DEFAULT_MARKET_CONFIG: MarketAccount = {
 };
 
 export const PremiumSimulator: React.FC = () => {
+  // 模式切换
+  const [mode, setMode] = useState<'premium' | 'odds'>('premium');
+
   // 基础交易参数
   const [spotPrice, setSpotPrice] = useState<number>(100);
   const [barrierPrice, setBarrierPrice] = useState<number>(100);
   const [side, setSide] = useState<Side>(Side.Long);
+
+  // Odds 模式参数
+  const [odds, setOdds] = useState<number>(10);
 
   // 市场配置参数
   const [marketConfig, setMarketConfig] = useState<MarketAccount>(
@@ -88,6 +94,21 @@ export const PremiumSimulator: React.FC = () => {
     setMarketConfig((prev) => ({ ...prev, [key]: value }));
   };
 
+  // Odds 模式：计算结果
+  const oddsResult = useMemo(() => {
+    if (mode !== 'odds') return null;
+    
+    const targetPremium = 1.0 / odds;
+    const solvedBarrier = solveForBarrier(targetPremium, spotPrice, side, marketConfig);
+    const percentChange = ((solvedBarrier / spotPrice) - 1) * 100;
+    
+    return {
+      premium: targetPremium,
+      barrier: solvedBarrier,
+      percentChange,
+    };
+  }, [mode, odds, spotPrice, side, marketConfig]);
+
   return (
     <div style={{ 
       maxWidth: '1400px', 
@@ -95,9 +116,40 @@ export const PremiumSimulator: React.FC = () => {
       padding: '20px',
       fontFamily: 'system-ui, -apple-system, sans-serif'
     }}>
-      <h1 style={{ textAlign: 'center', color: '#1a1a1a', marginBottom: '30px' }}>
-        📊 期权权利金计算器与可视化
+      <h1 style={{ textAlign: 'center', color: '#1a1a1a', marginBottom: '20px' }}>
+        📊 期权计算器与可视化
       </h1>
+
+      {/* Tab 切换 */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        gap: '10px',
+        marginBottom: '30px'
+      }}>
+        <button
+          onClick={() => setMode('premium')}
+          style={{
+            ...tabButtonStyle,
+            backgroundColor: mode === 'premium' ? '#4dabf7' : '#f1f3f5',
+            color: mode === 'premium' ? '#fff' : '#495057',
+            fontWeight: mode === 'premium' ? 600 : 400,
+          }}
+        >
+          💰 Premium 模式
+        </button>
+        <button
+          onClick={() => setMode('odds')}
+          style={{
+            ...tabButtonStyle,
+            backgroundColor: mode === 'odds' ? '#4dabf7' : '#f1f3f5',
+            color: mode === 'odds' ? '#fff' : '#495057',
+            fontWeight: mode === 'odds' ? 600 : 400,
+          }}
+        >
+          🎲 Odds 模式
+        </button>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '30px' }}>
         {/* 左侧：参数输入区 */}
@@ -127,17 +179,34 @@ export const PremiumSimulator: React.FC = () => {
               />
             </div>
 
-            <div style={{ marginTop: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
-                障碍价格 (Barrier Price)
-              </label>
-              <input
-                type="number"
-                value={barrierPrice}
-                onChange={(e) => setBarrierPrice(Number(e.target.value))}
-                style={inputStyle}
-              />
-            </div>
+            {mode === 'premium' ? (
+              <div style={{ marginTop: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+                  障碍价格 (Barrier Price)
+                </label>
+                <input
+                  type="number"
+                  value={barrierPrice}
+                  onChange={(e) => setBarrierPrice(Number(e.target.value))}
+                  style={inputStyle}
+                />
+              </div>
+            ) : (
+              <div style={{ marginTop: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
+                  赔率 (Odds)
+                </label>
+                <input
+                  type="number"
+                  value={odds}
+                  onChange={(e) => setOdds(Number(e.target.value))}
+                  style={inputStyle}
+                  min="1.01"
+                  step="0.1"
+                />
+                <small style={{ color: '#666' }}>例如：10 表示 10 倍赔率</small>
+              </div>
+            )}
 
             <div style={{ marginTop: '15px' }}>
               <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
@@ -272,36 +341,94 @@ export const PremiumSimulator: React.FC = () => {
 
         {/* 右侧：结果与图表 */}
         <div>
-          {/* 计算结果 */}
-          <div style={{ 
-            backgroundColor: '#e8f5e9', 
-            padding: '20px', 
-            borderRadius: '8px',
-            marginBottom: '20px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
-            <h2 style={{ marginTop: 0, fontSize: '18px', color: '#2e7d32' }}>💰 当前权利金 (Premium)</h2>
-            <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#1b5e20', margin: '10px 0' }}>
-              {currentPremium.toFixed(6)}
+          {mode === 'premium' ? (
+            /* Premium 模式：显示 Premium */
+            <div style={{ 
+              backgroundColor: '#e8f5e9', 
+              padding: '20px', 
+              borderRadius: '8px',
+              marginBottom: '20px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}>
+              <h2 style={{ marginTop: 0, fontSize: '18px', color: '#2e7d32' }}>💰 当前权利金 (Premium)</h2>
+              <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#1b5e20', margin: '10px 0' }}>
+                {currentPremium.toFixed(6)}
+              </div>
+              <div style={{ fontSize: '14px', color: '#555' }}>
+                <p style={{ margin: '5px 0' }}>
+                  <strong>方向:</strong> {side === Side.Long ? 'Long (看涨)' : 'Short (看跌)'}
+                </p>
+                <p style={{ margin: '5px 0' }}>
+                  <strong>现货价格:</strong> ${spotPrice.toFixed(2)}
+                </p>
+                <p style={{ margin: '5px 0' }}>
+                  <strong>障碍价格:</strong> ${barrierPrice.toFixed(2)}
+                </p>
+                <p style={{ margin: '5px 0' }}>
+                  <strong>隐含波动率:</strong> {(Math.sqrt(marketConfig.sigma2) * 100).toFixed(2)}%
+                </p>
+                <p style={{ margin: '5px 0' }}>
+                  <strong>到期时间:</strong> {(marketConfig.epochDurationSecs * marketConfig.settleDelayEpochs / 3600).toFixed(2)} 小时
+                </p>
+              </div>
             </div>
-            <div style={{ fontSize: '14px', color: '#555' }}>
-              <p style={{ margin: '5px 0' }}>
-                <strong>方向:</strong> {side === Side.Long ? 'Long (看涨)' : 'Short (看跌)'}
-              </p>
-              <p style={{ margin: '5px 0' }}>
-                <strong>现货价格:</strong> ${spotPrice.toFixed(2)}
-              </p>
-              <p style={{ margin: '5px 0' }}>
-                <strong>障碍价格:</strong> ${barrierPrice.toFixed(2)}
-              </p>
-              <p style={{ margin: '5px 0' }}>
-                <strong>隐含波动率:</strong> {(Math.sqrt(marketConfig.sigma2) * 100).toFixed(2)}%
-              </p>
-              <p style={{ margin: '5px 0' }}>
-                <strong>到期时间:</strong> {(marketConfig.epochDurationSecs * marketConfig.settleDelayEpochs / 3600).toFixed(2)} 小时
-              </p>
+          ) : (
+            /* Odds 模式：显示反推的 K 值 */
+            <div style={{ 
+              backgroundColor: '#fff3e0', 
+              padding: '20px', 
+              borderRadius: '8px',
+              marginBottom: '20px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}>
+              <h2 style={{ marginTop: 0, fontSize: '18px', color: '#e65100' }}>🎲 根据 Odds 反推障碍价格</h2>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '15px' }}>
+                <div>
+                  <div style={{ fontSize: '14px', color: '#666', marginBottom: '5px' }}>赔率 (Odds)</div>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ef6c00' }}>
+                    {odds.toFixed(2)}X
+                  </div>
+                </div>
+                
+                <div>
+                  <div style={{ fontSize: '14px', color: '#666', marginBottom: '5px' }}>权利金 (Premium)</div>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ef6c00' }}>
+                    {oddsResult ? oddsResult.premium.toFixed(6) : '-'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#ffe0b2', borderRadius: '6px' }}>
+                <div style={{ fontSize: '14px', color: '#666', marginBottom: '5px' }}>推荐障碍价格 (K)</div>
+                <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#bf360c' }}>
+                  ${oddsResult ? oddsResult.barrier.toFixed(2) : '-'}
+                </div>
+                <div style={{ fontSize: '18px', color: '#d84315', marginTop: '8px' }}>
+                  {oddsResult ? (
+                    oddsResult.percentChange > 0 ? 
+                      `需要上涨 ${oddsResult.percentChange.toFixed(2)}%` :
+                      `需要下跌 ${Math.abs(oddsResult.percentChange).toFixed(2)}%`
+                  ) : '-'}
+                </div>
+              </div>
+
+              <div style={{ fontSize: '14px', color: '#555', marginTop: '15px' }}>
+                <p style={{ margin: '5px 0' }}>
+                  <strong>方向:</strong> {side === Side.Long ? 'Long (看涨)' : 'Short (看跌)'}
+                </p>
+                <p style={{ margin: '5px 0' }}>
+                  <strong>当前现货:</strong> ${spotPrice.toFixed(2)}
+                </p>
+                <p style={{ margin: '5px 0' }}>
+                  <strong>隐含波动率:</strong> {(Math.sqrt(marketConfig.sigma2) * 100).toFixed(2)}%
+                </p>
+                <p style={{ margin: '5px 0' }}>
+                  <strong>到期时间:</strong> {(marketConfig.epochDurationSecs * marketConfig.settleDelayEpochs / 3600).toFixed(2)} 小时
+                </p>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 图表 */}
           <div style={{ 
@@ -425,6 +552,48 @@ function calcPremium(
   }
 }
 
+// 二分法求解器：根据 Premium 反推 Barrier (K) 值
+function solveForBarrier(
+  targetPremium: number,
+  spot: number,
+  side: Side,
+  marketConfig: MarketAccount,
+  tolerance: number = 1e-6,
+  maxIterations: number = 100
+): number {
+  // 设置搜索范围
+  let kMin = side === Side.Long ? spot * 1.001 : spot * 0.01;
+  let kMax = side === Side.Long ? spot * 3.0 : spot * 0.999;
+  
+  let iterations = 0;
+  
+  // 二分法迭代
+  while (kMax - kMin > tolerance && iterations < maxIterations) {
+    const kMid = (kMin + kMax) / 2;
+    const premium = calcPremium(spot, kMid, side, marketConfig);
+    
+    if (side === Side.Long) {
+      // Call: premium 随 K 增大而减小
+      if (premium > targetPremium) {
+        kMin = kMid;
+      } else {
+        kMax = kMid;
+      }
+    } else {
+      // Put: premium 随 K 增大而增大（K 接近 S 时 premium 更大）
+      if (premium > targetPremium) {
+        kMax = kMid;
+      } else {
+        kMin = kMid;
+      }
+    }
+    
+    iterations++;
+  }
+  
+  return (kMin + kMax) / 2;
+}
+
 // 输入框样式
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -433,5 +602,16 @@ const inputStyle: React.CSSProperties = {
   borderRadius: '4px',
   fontSize: '14px',
   boxSizing: 'border-box',
+};
+
+// Tab 按钮样式
+const tabButtonStyle: React.CSSProperties = {
+  padding: '12px 30px',
+  border: 'none',
+  borderRadius: '8px',
+  fontSize: '16px',
+  cursor: 'pointer',
+  transition: 'all 0.3s ease',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
 };
 
