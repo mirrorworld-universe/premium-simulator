@@ -58,6 +58,22 @@ export const PremiumSimulator: React.FC = () => {
     DEFAULT_MARKET_CONFIG
   );
 
+  // 当切换到 Odds 模式时，自动设置时间为 30 秒
+  React.useEffect(() => {
+    if (mode === 'odds') {
+      setMarketConfig((prev) => ({
+        ...prev,
+        epochDurationSecs: 30, // Odds 模式使用 30 秒
+      }));
+    } else {
+      // 切回 Premium 模式时恢复默认值
+      setMarketConfig((prev) => ({
+        ...prev,
+        epochDurationSecs: 300, // Premium 模式使用 5 分钟
+      }));
+    }
+  }, [mode]);
+
   // 图表范围设置
   const [rangePercent, setRangePercent] = useState<number>(30); // ±30%
   const [dataPoints, setDataPoints] = useState<number>(50); // 50个数据点

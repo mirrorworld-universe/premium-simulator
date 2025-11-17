@@ -109,6 +109,7 @@ npm run preview
 
 ## 📝 默认配置
 
+### Premium 模式
 ```typescript
 {
   epochDurationSecs: 300,      // 5 分钟
@@ -119,6 +120,20 @@ npm run preview
   putLambda: 1.001,            // > 1.0
 }
 ```
+
+### Odds 模式
+```typescript
+{
+  epochDurationSecs: 30,       // 30 秒（自动设置）
+  settleDelayEpochs: 1,        // 1 个周期
+  sigma2: 0.25,                // IV ≈ 50%
+  vegaBuffer: 0.05,            // 5% 波动率缓冲
+  callLambda: 0.999,           // < 1.0
+  putLambda: 1.001,            // > 1.0
+}
+```
+
+> 💡 **提示**: 切换到 Odds 模式时，周期时长会自动调整为 30 秒，更适合短期赔率计算。
 
 ## 🎯 应用场景
 
